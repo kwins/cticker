@@ -4,21 +4,21 @@ import (
 	"sync"
 )
 
-// TaskHolder 持有所有的task
-type TaskHolder struct {
+// taskHolder 持有所有的task
+type taskHolder struct {
 	locker sync.RWMutex
 	bulk   map[string]*Task
 }
 
-// NewTaskHolder NewTaskHolder
-func NewTaskHolder() *TaskHolder {
-	this := new(TaskHolder)
+// newTaskHolder newTaskHolder
+func newTaskHolder() *taskHolder {
+	this := new(taskHolder)
 	this.bulk = make(map[string]*Task)
 	return this
 }
 
 // Get Get
-func (holder *TaskHolder) Get(sequenceid string) *Task {
+func (holder *taskHolder) get(sequenceid string) *Task {
 	holder.locker.Lock()
 	defer holder.locker.Unlock()
 	if v, ok := holder.bulk[sequenceid]; ok {
@@ -29,15 +29,19 @@ func (holder *TaskHolder) Get(sequenceid string) *Task {
 }
 
 // Add Add
-func (holder *TaskHolder) Add(sequenceid string, task *Task) {
+func (holder *taskHolder) add(sequenceid string, task *Task) {
 	holder.locker.Lock()
 	holder.bulk[sequenceid] = task
 	holder.locker.Unlock()
 }
 
 // Delete 删除
-func (holder *TaskHolder) Delete(sequenceid string) {
+func (holder *taskHolder) delete(sequenceid string) {
 	holder.locker.Lock()
 	delete(holder.bulk, sequenceid)
 	holder.locker.Unlock()
+}
+
+func (holder *taskHolder) cancel(sequenceid string) {
+	holder.get(sequenceid).cancel = true
 }

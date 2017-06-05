@@ -13,20 +13,22 @@ var (
 )
 
 // Slots 循环队列槽
-type Slots struct {
+type slots struct {
 	slots    []*Tasks      //
 	count    int           // 槽总数
 	current  int           // 当前Slot index
 	duration time.Duration // 槽移动单位时间
 }
 
-// NewSlots new slots
+// newSlots new slots
 // 设置rdb的值，则支持持久化存储模式，rdb为nil则为内存模式
-func NewSlots(count int, duration time.Duration) *Slots {
-	s := new(Slots)
+func newSlots(count int, duration time.Duration) *slots {
+	s := new(slots)
 	if count != 0 {
+		s.count = count
 		s.slots = make([]*Tasks, count+1)
 	} else {
+		s.count = defaultSlotNum
 		s.slots = make([]*Tasks, defaultSlotNum+1)
 	}
 	for k := range s.slots {
@@ -43,18 +45,18 @@ func NewSlots(count int, duration time.Duration) *Slots {
 }
 
 // Loop 槽循环
-func (s *Slots) Loop() {
+func (s *slots) loop() {
 	t := time.NewTicker(s.duration)
 	go func() {
 		for {
 			<-t.C
-			s.Next()
+			s.next()
 		}
 	}()
 }
 
 // Next Next
-func (s *Slots) Next() {
+func (s *slots) next() {
 	// 检查当前Slot中有没有定时任务需要执行
 	for e := s.slots[s.current].tasks.Front(); e != nil; e = e.Next() {
 		v, ok := e.Value.(*Task)
@@ -65,7 +67,7 @@ func (s *Slots) Next() {
 		}
 		if 0 == v.cycleNum {
 			if !v.cancel {
-				log.Println("excute task handler...")
+				log.Println("excute task handler...", v.seqid)
 				go v.handler()
 			}
 			s.slots[s.current].Remove(e)
@@ -81,7 +83,7 @@ func (s *Slots) Next() {
 }
 
 // AddByIndex 增加定时任务
-func (s *Slots) AddByIndex(index int, task *Task) error {
+func (s *slots) addByIndex(index int, task *Task) error {
 	if index > s.count {
 		return errIndexOutofRange
 	}

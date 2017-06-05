@@ -13,8 +13,8 @@ const defaultDuration = time.Second
 // Queue 环形队列
 type Queue struct {
 	slotNum   int          // 环形队列的Slot数量
-	s         *Slots       // 环形队列的槽
-	taskHoler *TaskHolder  // 环形队列所有的定时任务
+	s         *slots       // 环形队列的槽
+	taskHoler *taskHolder  // 环形队列所有的定时任务
 	locker    sync.RWMutex //
 }
 
@@ -22,33 +22,26 @@ type Queue struct {
 // 环形队列序号从 1 开始
 func NewQueue(num int, duration time.Duration) *Queue {
 	q := new(Queue)
-	q.s = NewSlots(num, duration)
-	q.taskHoler = NewTaskHolder()
+	q.s = newSlots(num, duration)
+	q.taskHoler = newTaskHolder()
 	q.slotNum = cap(q.s.slots)
-	q.s.Loop()
+	q.s.loop()
 	return q
-}
-
-// GetTask 获取一个定时任务
-func (q *Queue) GetTask(sequenceid string) *Task {
-	return q.taskHoler.Get(sequenceid)
 }
 
 // CancelTask 取消尚未执行的定时任务
 func (q *Queue) CancelTask(sequenceid string) {
-	if t := q.taskHoler.Get(sequenceid); t != nil {
-		t.Cancel()
-	}
+	q.taskHoler.cancel(sequenceid)
 }
 
 // AddTimerTask 增加定时任务
 func (q *Queue) AddTimerTask(seconds int, sequenceid string, task *Task) error {
-
+	task.seqid = sequenceid
 	count := q.s.current + seconds
 	task.cycleNum = count / q.slotNum
 	index := count % q.slotNum
-	log.Trace("current:", q.s.current, " count:", q.s.count, " count:", count, " task.cycleNum:", task.cycleNum, " index:", index)
-	q.taskHoler.Add(sequenceid, task)
+	log.Trace("current:", q.s.current, " count:", q.s.count, " task.cycleNum:", task.cycleNum, " index:", index)
+	q.taskHoler.add(sequenceid, task)
 
-	return q.s.AddByIndex(index, task)
+	return q.s.addByIndex(index, task)
 }
