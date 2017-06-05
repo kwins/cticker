@@ -67,7 +67,6 @@ func (s *slots) next() {
 		}
 		if 0 == v.cycleNum {
 			if !v.cancel {
-				log.Println("excute task handler...", v.seqid)
 				go v.handler()
 			}
 			s.slots[s.current].Remove(e)
@@ -90,7 +89,6 @@ func (s *slots) addByIndex(index int, task *Task) error {
 	if nil == task {
 		return errTaskNil
 	}
-	log.Println("Add task at:", index)
 	s.slots[index].PushBack(task)
 	return nil
 }

@@ -3,8 +3,6 @@ package cticker
 import (
 	"sync"
 	"time"
-
-	log "github.com/cihub/seelog"
 )
 
 const defaultSlotNum = 512
@@ -40,7 +38,6 @@ func (q *Queue) AddTimerTask(seconds int, sequenceid string, task *Task) error {
 	count := q.s.current + seconds
 	task.cycleNum = count / q.slotNum
 	index := count % q.slotNum
-	log.Trace("current:", q.s.current, " count:", q.s.count, " task.cycleNum:", task.cycleNum, " index:", index)
 	q.taskHoler.add(sequenceid, task)
 
 	return q.s.addByIndex(index, task)
