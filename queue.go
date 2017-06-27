@@ -27,6 +27,11 @@ func NewQueue(num int, duration time.Duration) *Queue {
 	return q
 }
 
+// GetTask get un exec task
+func (q *Queue) GetTask(sequenceid string) *Task {
+	return q.taskHoler.get(sequenceid)
+}
+
 // CancelTask 取消尚未执行的定时任务
 func (q *Queue) CancelTask(sequenceid string) {
 	q.taskHoler.cancel(sequenceid)

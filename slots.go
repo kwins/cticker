@@ -3,7 +3,6 @@ package cticker
 import (
 	"container/list"
 	"errors"
-	"log"
 	"time"
 )
 
@@ -62,7 +61,6 @@ func (s *slots) next() {
 		v, ok := e.Value.(*Task)
 		if !ok {
 			s.slots[s.current].Remove(e)
-			log.Println("remove:", s.current)
 			continue
 		}
 		if 0 == v.cycleNum {
