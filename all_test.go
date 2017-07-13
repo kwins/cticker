@@ -2,24 +2,25 @@ package cticker
 
 import (
 	"fmt"
+	"sync"
 	"testing"
-	"time"
 )
 
+var wg sync.WaitGroup
+
 func TestCTicker(t *testing.T) {
-	ticker := NewQueue(0, 0)
+	ticker := NewTaskSchedule()
 	for index := 0; index < 100; index++ {
+		wg.Add(1)
 		var task Task
 		var i = index
 		task.handler = func() error {
 			fmt.Println("index:", i)
+			wg.Done()
 			return nil
 		}
-		ticker.AddTimerTask(index+1, fmt.Sprint(index), &task)
+		ticker.AddTask(index+1, int64(index), &task)
 	}
-	time.Sleep(time.Second * 5)
-	ticker.CancelTask(fmt.Sprint(10))
-	ta := ticker.GetTask(fmt.Sprint(15))
-	ta.Cancel()
-	time.Sleep(time.Hour)
+	ticker.CancelTask(10)
+	wg.Wait()
 }

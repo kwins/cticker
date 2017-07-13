@@ -1,49 +1,122 @@
 package cticker
 
 import (
-	"container/list"
 	"sync"
 )
 
-// Task Slot中定时任务个体
+// Task task
 type Task struct {
-	seqid    string       //
+	seqid    int64        //
 	cycleNum int          // 第几圈执行此定时任务
 	handler  func() error // 执行任务的函数,参数个自定义
 	cancel   bool         // true-表示取消，false-表示执行
+	next     *Task        // next
+	pre      *Task        // pre
 }
 
 // SetTaskHandler 设置任务函数
-func (task *Task) SetTaskHandler(h func() error) {
+func (tk *Task) setHandler(h func() error) {
 	if nil == h {
-		task.handler = func() error {
+		tk.handler = func() error {
 			return nil
 		}
 	}
-	task.handler = h
+	tk.handler = h
 }
 
-// Cancel 取消任务
-func (task *Task) Cancel() {
-	task.cancel = true
+func (tk *Task) canceled() bool {
+	return tk.cancel
 }
 
-// Tasks Slot中任务集合
-type Tasks struct {
+type tasks struct {
 	locker sync.RWMutex
-	tasks  *list.List // Slot中任务集合
+	next   *Task // Slot中任务集合
+	l      int   // task length
 }
 
-// Remove 移除链表元素
-func (t *Tasks) Remove(e *list.Element) {
-	t.locker.Lock()
-	t.tasks.Remove(e)
-	t.locker.Unlock()
+// 双向链表
+func newTasks() *tasks {
+	t := new(tasks)
+	t.next = nil
+	t.l = 0
+	return t
 }
 
-// PushBack 加入到链表最后
-func (t *Tasks) PushBack(task *Task) {
-	t.locker.Lock()
-	t.tasks.PushBack(task)
-	t.locker.Unlock()
+func (tks *tasks) remove(t *Task) {
+	tks.locker.Lock()
+	if t.next != nil {
+		t.next.pre = t.pre
+	}
+	if t.pre != nil {
+		t.pre.next = t.next
+	} else {
+		tks.next = t.next
+	}
+	tks.l--
+	tks.locker.Unlock()
+}
+
+func (tks *tasks) pushFront(t *Task) {
+	tks.locker.Lock()
+	if tks.next != nil {
+		tks.next.pre = t
+	}
+	t.next = tks.next
+	t.pre = nil
+	tks.next = t
+	tks.l++
+	tks.locker.Unlock()
+}
+
+func (tks *tasks) drop() {
+	tks.locker.Lock()
+	for idx := tks.next; idx != nil; idx = idx.next {
+		idx.cancel = true
+	}
+	tks.locker.Unlock()
+}
+
+/*
+taskHolder 维护所有任务，方便取消任务
+*/
+type taskHolder struct {
+	locker sync.RWMutex
+	bulk   map[int64]*Task
+}
+
+func newTaskHolder() *taskHolder {
+	h := new(taskHolder)
+	h.bulk = make(map[int64]*Task)
+	return h
+}
+
+// Get Get
+func (holder *taskHolder) get(sequenceid int64) *Task {
+	holder.locker.Lock()
+	defer holder.locker.Unlock()
+	if v, ok := holder.bulk[sequenceid]; ok {
+		delete(holder.bulk, sequenceid)
+		return v
+	}
+	return nil
+}
+
+// add task
+func (holder *taskHolder) add(sequenceid int64, t *Task) {
+	holder.locker.Lock()
+	holder.bulk[sequenceid] = t
+	holder.locker.Unlock()
+}
+
+// delete 删除
+func (holder *taskHolder) delete(sequenceid int64) {
+	holder.locker.Lock()
+	delete(holder.bulk, sequenceid)
+	holder.locker.Unlock()
+}
+
+func (holder *taskHolder) cancel(sequenceid int64) {
+	if t := holder.get(sequenceid); t != nil {
+		t.cancel = true
+	}
 }
